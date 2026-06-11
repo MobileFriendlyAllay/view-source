@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Source - Code Inspector</title>
+    <!-- Tailwind CSS for modern landing UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Monospace font settings mimicking native view-source */
+        .code-font {
+            font-family: 'Consolas', 'Fira Code', 'Monaco', 'Courier New', Courier, monospace;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        /* Line numbers are non-selectable to allow clean copy-pasting of source */
+        .line-num {
+            user-select: none;
+            -webkit-user-select: none;
+            text-align: right;
+            padding-right: 1.5rem;
+            color: #858585;
+            border-right: 1px solid #e1e1e1;
+            width: 50px;
+            min-width: 50px;
+        }
+
+        .dark .line-num {
+            color: #606060;
+            border-right: 1px solid #3c3c3c;
+        }
+
+        .code-cell {
+            padding-left: 1.5rem;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        /* Syntax colors inspired by Chrome native view-source */
+        .source-link {
+            color: #0000ee;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+        .dark .source-link {
+            color: #8ab4f8;
+        }
+        .source-link:hover {
+            color: #ff0000;
+        }
+        .dark .source-link:hover {
+            color: #f28b82;
+        }
+
+        /* Scrollbar styles */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #4a4a4a;
+            border-radius: 5px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cdcdcd;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col transition-colors duration-200" id="body-element">
+
+    <!-- LANDING VIEW (Shown when no URL is provided in Hash) -->
+    <div id="landing-view" class="flex-grow flex flex-col justify-center items-center px-4 py-12 max-w-4xl mx-auto w-full">
+        <div class="text-center mb-8">
+            <div class="inline-flex items-center justify-center p-3 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 rounded-2xl mb-4">
+                <i data-lucide="code-2" class="w-10 h-10"></i>
+            </div>
+            <h1 class="text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white mb-2">
+                Web Source Inspector
+            </h1>
+            <p class="text-lg text-slate-600 dark:text-slate-400">
+                Inspect, browse, and analyze website source code directly in your browser.
+            </p>
+        </div>
+
+        <div class="w-full bg-white dark:bg-slate-900 rounded-2xl shadow-xl p-6 md:p-8 border border-slate-100 dark:border-slate-800">
+            <form id="source-form" class="space-y-4">
+                <div>
+                    <label for="url-input" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                        Enter Website URL
+                    </label>
+                    <div class="relative rounded-lg shadow-sm">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                            <i data-lucide="globe" class="w-5 h-5"></i>
+                        </div>
+                        <input type="text" id="url-input" required placeholder="https://example.com" 
+                            class="block w-full pl-10 pr-4 py-3 border border-slate-300 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition duration-150">
+                    </div>
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-xl shadow-lg hover:shadow-indigo-500/25 transition duration-150 flex items-center justify-center gap-2">
+                    <i data-lucide="eye" class="w-5 h-5"></i> View Source Code
+                </button>
+            </form>
+
+            <div class="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800">
+                <h3 class="text-sm font-semibold text-slate-900 dark:text-white mb-3">Quick Try:</h3>
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="quickLoad('https://example.com')" class="text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 py-2 px-3 rounded-lg transition">example.com</button>
+                    <button onclick="quickLoad('https://www.wikipedia.org')" class="text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 py-2 px-3 rounded-lg transition">wikipedia.org</button>
+                    <button onclick="quickLoad('https://news.ycombinator.com')" class="text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 py-2 px-3 rounded-lg transition">Hacker News</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+            <div class="p-4">
+                <h4 class="font-bold text-slate-900 dark:text-white mb-1">Interactive Links</h4>
+                <p class="text-sm text-slate-500 dark:text-slate-400">All resource scripts, styles, and links are fully hyperlinked to inspect recursively.</p>
+            </div>
+            <div class="p-4">
+                <h4 class="font-bold text-slate-900 dark:text-white mb-1">Fallback Proxies</h4>
+                <p class="text-sm text-slate-500 dark:text-slate-400">Uses 3 different layers of fetching strategies to bypass strict CORS configurations.</p>
+            </div>
+            <div class="p-4">
+                <h4 class="font-bold text-slate-900 dark:text-white mb-1">Clean & Safe</h4>
+                <p class="text-sm text-slate-500 dark:text-slate-400">Entirely client-side architecture with complete script sanitization preventing any XSS.</p>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- VIEWER VIEW (Shown when URL is active in Hash) -->
+    <div id="viewer-view" class="hidden flex-grow flex flex-col relative">
+        
+        <!-- Floating Minimalist Action Panel -->
+        <div class="fixed top-4 right-4 z-50 flex items-center gap-2 font-sans select-none">
+            <!-- Compact Status Badge -->
+            <span id="status-badge" class="px-2.5 py-1 rounded-xl text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 shadow-md border border-amber-200/50 dark:border-amber-800/50 backdrop-blur-sm">
+                Connecting...
+            </span>
+
+            <!-- Compact Actions Dropdown -->
+            <div class="relative group">
+                <!-- Collapsed Menu Icon Trigger -->
+                <button class="p-2.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-slate-700 transition-all flex items-center gap-2">
+                    <i data-lucide="menu" class="w-4 h-4"></i>
+                    <span class="text-xs font-semibold hidden sm:inline">Inspect Menu</span>
+                </button>
+
+                <!-- Floating Dropdown panel on Hover -->
+                <div class="absolute right-0 mt-2 w-64 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-3 space-y-2 opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto transition-all duration-200 origin-top-right">
+                    <div class="px-2 py-1">
+                        <span class="text-[10px] uppercase tracking-wider font-bold text-slate-400 dark:text-slate-500">Inspecting URL</span>
+                        <div id="current-inspect-url" class="text-xs font-mono text-slate-800 dark:text-slate-200 truncate mt-0.5 select-all" title="Click to select URL">
+                            Loading...
+                        </div>
+                    </div>
+
+                    <div class="border-t border-slate-100 dark:border-slate-800/60 my-1"></div>
+
+                    <!-- Actions -->
+                    <button id="copy-btn" onclick="copySourceCode()" class="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 rounded-xl transition">
+                        <i data-lucide="copy" class="w-4 h-4 text-slate-500"></i> Copy Code String
+                    </button>
+
+                    <a id="external-link" target="_blank" rel="noopener" class="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 rounded-xl transition">
+                        <i data-lucide="external-link" class="w-4 h-4 text-slate-500"></i> Open Live Site
+                    </a>
+
+                    <button onclick="toggleDarkMode()" class="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 rounded-xl transition">
+                        <!-- Dual theme icons bound inside standard layout -->
+                        <div class="relative w-4 h-4">
+                            <i data-lucide="sun" id="sun-icon" class="w-4 h-4 absolute inset-0 text-amber-500"></i>
+                            <i data-lucide="moon" id="moon-icon" class="w-4 h-4 absolute inset-0 text-indigo-400 hidden"></i>
+                        </div>
+                        <span>Toggle Theme</span>
+                    </button>
+
+                    <div class="border-t border-slate-100 dark:border-slate-800/60 my-1"></div>
+
+                    <button onclick="goHome()" class="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-xl transition">
+                        <i data-lucide="arrow-left" class="w-4 h-4"></i> Inspect Another Page
+                    </button>
+                    <span class="text-[10px] uppercase tracking-wider font-bold text-slate-400 dark:text-slate-500">Powered by <a href="https://view-source.netlify.app" target="_blank" style="text-decoration: underline;">view-source.netlify.app</a></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading / Progress State -->
+        <div id="loading-container" class="flex-grow flex flex-col items-center justify-center p-8">
+            <div class="animate-spin text-indigo-600 dark:text-indigo-400 mb-4">
+                <i data-lucide="loader-2" class="w-12 h-12"></i>
+            </div>
+            <p id="loading-status-text" class="text-slate-600 dark:text-slate-400 font-medium">Initializing Connection...</p>
+            <div class="w-64 bg-slate-200 dark:bg-slate-800 rounded-full h-1.5 mt-4 overflow-hidden">
+                <div id="loading-bar-progress" class="bg-indigo-600 h-1.5 w-1/12 transition-all duration-300"></div>
+            </div>
+            <div id="connection-steps" class="mt-6 space-y-2 text-xs font-mono text-slate-400 max-w-sm w-full bg-slate-100 dark:bg-slate-900 p-4 rounded-lg">
+                <!-- Log steps will print here -->
+            </div>
+        </div>
+
+        <!-- Failure State -->
+        <div id="error-container" class="hidden flex-grow flex flex-col items-center justify-center p-6 text-center max-w-lg mx-auto">
+            <div class="text-red-500 mb-4 bg-red-100 dark:bg-red-950/40 p-4 rounded-full">
+                <i data-lucide="alert-triangle" class="w-12 h-12"></i>
+            </div>
+            <h3 class="text-xl font-bold text-slate-900 dark:text-white mb-2">Unable to Fetch Source</h3>
+            <p id="error-message-text" class="text-slate-600 dark:text-slate-400 text-sm mb-6">
+                All modern and standard CORS proxy fallbacks failed. The server might be offline, preventing requests, or blocks proxy traffic.
+            </p>
+            <div class="flex gap-3">
+                <button onclick="retryCurrentFetch()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 px-5 rounded-xl text-sm transition flex items-center gap-2">
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i> Retry Fetching
+                </button>
+                <button onclick="goHome()" class="bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold py-2.5 px-5 rounded-xl text-sm transition">
+                    Go Back
+                </button>
+            </div>
+        </div>
+
+        <!-- Source Code View Area (Matching browser style - No top spacing offsets) -->
+        <main id="source-wrapper" class="hidden flex-grow overflow-auto bg-white dark:bg-[#1e1e1e] text-[#111] dark:text-[#d4d4d4] code-font select-text">
+            <table class="w-full border-collapse">
+                <tbody id="source-table-body">
+                    <!-- Loaded program code lines will go here -->
+                </tbody>
+            </table>
+        </main>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white dark:bg-white dark:text-slate-900 px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2 text-sm transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none z-50 font-sans">
+        <i data-lucide="check-circle" class="w-4 h-4 text-green-400 dark:text-green-600"></i>
+        <span id="toast-message">Message copied!</span>
+    </div>
+
+    <script>
+        // State Variables
+        let currentTargetUrl = "";
+        let currentSourceCode = "";
+        const isDarkMode = localStorage.getItem('viewsource-dark') === 'true';
+
+        // Initialize Lucide Icons
+        lucide.createIcons();
+
+        // Theme Initialization
+        if (isDarkMode) {
+            document.documentElement.classList.add('dark');
+            document.getElementById('body-element').classList.add('dark', 'bg-slate-950');
+            document.getElementById('sun-icon').classList.add('hidden');
+            document.getElementById('moon-icon').classList.remove('hidden');
+        } else {
+            document.documentElement.classList.remove('dark');
+            document.getElementById('body-element').classList.add('bg-slate-50');
+        }
+
+        // Event Listeners
+        window.addEventListener('hashchange', handleHashRouting);
+        window.addEventListener('DOMContentLoaded', handleHashRouting);
+
+        document.getElementById('source-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const rawUrl = document.getElementById('url-input').value.trim();
+            if (rawUrl) {
+                navigateToUrl(rawUrl);
+            }
+        });
+
+        // Routing Logic
+        function handleHashRouting() {
+            const hash = window.location.hash;
+            if (hash && hash.length > 1) {
+                const encodedUrl = hash.substring(1);
+                try {
+                    currentTargetUrl = decodeURIComponent(encodedUrl);
+                    // Standardize scheme if missing
+                    if (!/^https?:\/\//i.test(currentTargetUrl)) {
+                        currentTargetUrl = 'https://' + currentTargetUrl;
+                    }
+                    showViewerMode();
+                    fetchWebsiteSource(currentTargetUrl);
+                } catch (e) {
+                    console.error("Failed to decode target URL: ", e);
+                    goHome();
+                }
+            } else {
+                showLandingMode();
+            }
+        }
+
+        function navigateToUrl(url) {
+            window.location.hash = encodeURIComponent(url);
+        }
+
+        // Fast Quick-load mechanism
+        function quickLoad(url) {
+            document.getElementById('url-input').value = url;
+            navigateToUrl(url);
+        }
+
+        function goHome() {
+            window.location.hash = "";
+            document.getElementById('url-input').value = "";
+        }
+
+        function showLandingMode() {
+            document.getElementById('landing-view').classList.remove('hidden');
+            document.getElementById('viewer-view').classList.add('hidden');
+            document.title = "View Source - Code Inspector";
+        }
+
+        function showViewerMode() {
+            document.getElementById('landing-view').classList.add('hidden');
+            document.getElementById('viewer-view').classList.remove('hidden');
+            document.getElementById('current-inspect-url').innerText = currentTargetUrl;
+            document.getElementById('external-link').href = currentTargetUrl;
+            document.title = `view-source:${currentTargetUrl}`;
+        }
+
+        // Multi-tier Fallback Fetch System
+        async function fetchWebsiteSource(url) {
+            const loadingText = document.getElementById('loading-status-text');
+            const loadingBar = document.getElementById('loading-bar-progress');
+            const logContainer = document.getElementById('connection-steps');
+            const statusBadge = document.getElementById('status-badge');
+
+            // Reset UI states
+            document.getElementById('loading-container').classList.remove('hidden');
+            document.getElementById('error-container').classList.add('hidden');
+            document.getElementById('source-wrapper').classList.add('hidden');
+            logContainer.innerHTML = "";
+            currentSourceCode = "";
+
+            statusBadge.innerText = "Connecting...";
+            statusBadge.className = "px-2.5 py-1 rounded-xl text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-200/50 dark:border-amber-800/50 backdrop-blur-sm";
+
+            const addLog = (message, isSuccess = true) => {
+                const item = document.createElement('div');
+                item.className = isSuccess ? "text-slate-600 dark:text-slate-300" : "text-red-500 dark:text-red-400";
+                item.innerHTML = `&gt; ${message}`;
+                logContainer.appendChild(item);
+                logContainer.scrollTop = logContainer.scrollHeight;
+            };
+
+            // Stage 1: Direct Fetch Attempt
+            loadingText.innerText = "Attempting direct fetch...";
+            loadingBar.style.width = "30%";
+            addLog(`Requesting Direct Fetch to: ${url}`);
+
+            try {
+                const response = await fetch(url, { headers: { 'Accept': 'text/html,application/xhtml+xml,application/xml' } });
+                if (response.ok) {
+                    const text = await response.text();
+                    if (text && text.trim().length > 0) {
+                        addLog("Success! Directly connected to origin server.", true);
+                        loadingBar.style.width = "100%";
+                        handleFetchSuccess(text, url);
+                        return;
+                    }
+                }
+                throw new Error(`Direct connection returned status: ${response.status}`);
+            } catch (err) {
+                addLog(`Direct Fetch Failed (CORS or Blocked): ${err.message}`, false);
+            }
+
+            // Stage 2: Modern AllOrigins Proxy (JSON format retrieval)
+            loadingText.innerText = "Bypassing restrictions (AllOrigins Engine)...";
+            loadingBar.style.width = "60%";
+            addLog("Switching to Tier 2: Resolving using modern proxy (AllOrigins API)...");
+
+            try {
+                const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+                const response = await fetch(allOriginsUrl);
+                if (response.ok) {
+                    const json = await response.json();
+                    if (json.contents) {
+                        addLog("Success! Content bypassed through Tier 2 proxy.", true);
+                        loadingBar.style.width = "100%";
+                        handleFetchSuccess(json.contents, url);
+                        return;
+                    }
+                }
+                throw new Error(`Tier 2 returned status: ${response.status}`);
+            } catch (err) {
+                addLog(`Tier 2 Proxy Failed: ${err.message}`, false);
+            }
+
+            // Stage 3: Classic CORSProxy.io Method as last resort
+            loadingText.innerText = "Bypassing restrictions (CorsProxy Gateway)...";
+            loadingBar.style.width = "85%";
+            addLog("Switching to Tier 3: Resolving with fallback CORSProxy.io gateway...");
+
+            try {
+                const corsProxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+                const response = await fetch(corsProxyUrl);
+                if (response.ok) {
+                    const text = await response.text();
+                    if (text && text.trim().length > 0) {
+                        addLog("Success! Connection established via Tier 3 fallback gateway.", true);
+                        loadingBar.style.width = "100%";
+                        handleFetchSuccess(text, url);
+                        return;
+                    }
+                }
+                throw new Error(`Tier 3 returned status: ${response.status}`);
+            } catch (err) {
+                addLog(`Tier 3 Proxy Failed: ${err.message}`, false);
+            }
+
+            // If everything fails:
+            loadingBar.style.width = "100%";
+            setTimeout(() => {
+                document.getElementById('loading-container').classList.add('hidden');
+                document.getElementById('error-container').classList.remove('hidden');
+                statusBadge.innerText = "Error";
+                statusBadge.className = "px-2.5 py-1 rounded-xl text-xs font-semibold bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 border border-red-200/50 dark:border-red-800/50 backdrop-blur-sm";
+            }, 600);
+        }
+
+        // Retry helper
+        function retryCurrentFetch() {
+            if (currentTargetUrl) {
+                fetchWebsiteSource(currentTargetUrl);
+            }
+        }
+
+        // Process source html, parse relative paths securely, convert to hyperlinked view-source pointers
+        function handleFetchSuccess(rawHtml, baseUrl) {
+            currentSourceCode = rawHtml;
+            const statusBadge = document.getElementById('status-badge');
+            statusBadge.innerText = "Success";
+            statusBadge.className = "px-2.5 py-1 rounded-xl text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 border border-green-200/50 dark:border-green-800/50 backdrop-blur-sm";
+
+            document.getElementById('loading-container').classList.add('hidden');
+            const wrapper = document.getElementById('source-wrapper');
+            wrapper.classList.remove('hidden');
+
+            const placeholders = [];
+            let placeholderCounter = 0;
+
+            // Step 1: Detect href and src attributes in raw HTML string
+            // Replace with unique identifiers, resolving target URLs dynamically using baseUrl Context
+            let processedHtml = rawHtml.replace(/(href|src)\s*=\s*(["'])(.*?)\2/gi, (match, attribute, quote, relativePath) => {
+                // Ignore hash jumps or inline scripts/base64
+                if (!relativePath || relativePath.startsWith('#') || relativePath.startsWith('javascript:') || relativePath.startsWith('data:')) {
+                    return match;
+                }
+                try {
+                    const absoluteUrl = new URL(relativePath, baseUrl).href;
+                    const placeholderId = `___ATTR_REPLACE_${placeholderCounter++}___`;
+                    placeholders.push({
+                        id: placeholderId,
+                        type: 'attribute',
+                        attrName: attribute,
+                        quote: quote,
+                        originalPath: relativePath,
+                        absoluteUrl: absoluteUrl
+                    });
+                    return `${attribute}=${quote}${placeholderId}${quote}`;
+                } catch (e) {
+                    return match; // Keep matching syntax intact if URL fails to resolve
+                }
+            });
+
+            // Step 2: Detect raw standalone URLs that start with http/https
+            processedHtml = processedHtml.replace(/https?:\/\/[^\s<"'`]+/g, (match) => {
+                const placeholderId = `___URL_REPLACE_${placeholderCounter++}___`;
+                placeholders.push({
+                    id: placeholderId,
+                    type: 'standalone',
+                    absoluteUrl: match
+                });
+                return placeholderId;
+            });
+
+            // Step 3: Strictly sanitize entire text to protect host runtime from execution
+            let escapedHtml = escapeHtml(processedHtml);
+
+            // Step 4: Substitute secure hyperlinked tags back where placeholders were tracked
+            placeholders.forEach(item => {
+                const safeAbsoluteUrl = escapeHtml(item.absoluteUrl);
+                const localSourcePointer = `${window.location.origin}${window.location.pathname}#${encodeURIComponent(item.absoluteUrl)}`;
+
+                if (item.type === 'attribute') {
+                    const safeOriginalPath = escapeHtml(item.originalPath);
+                    const safeLink = `<a href="${localSourcePointer}" class="source-link" title="View Source of ${safeAbsoluteUrl}">${safeOriginalPath}</a>`;
+                    escapedHtml = escapedHtml.replace(item.id, safeLink);
+                } else if (item.type === 'standalone') {
+                    const safeLink = `<a href="${localSourcePointer}" class="source-link" title="View Source of ${safeAbsoluteUrl}">${safeAbsoluteUrl}</a>`;
+                    escapedHtml = escapedHtml.replace(item.id, safeLink);
+                }
+            });
+
+            // Render output inside table structures matching native browser layouts
+            const lines = escapedHtml.split('\n');
+            const tbody = document.getElementById('source-table-body');
+            tbody.innerHTML = "";
+
+            const fragment = document.createDocumentFragment();
+            lines.forEach((lineText, idx) => {
+                const row = document.createElement('tr');
+                
+                const numCell = document.createElement('td');
+                numCell.className = "line-num";
+                numCell.innerText = idx + 1;
+                
+                const codeCell = document.createElement('td');
+                codeCell.className = "code-cell";
+                codeCell.innerHTML = lineText === "" ? "<br>" : lineText;
+
+                row.appendChild(numCell);
+                row.appendChild(codeCell);
+                fragment.appendChild(row);
+            });
+            tbody.appendChild(fragment);
+        }
+
+        // Safe HTML Escaper
+        function escapeHtml(text) {
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // Global Action Helpers
+        function copySourceCode() {
+            if (!currentSourceCode) return;
+            // Standard iframe-safe copy command implementation
+            const textarea = document.createElement("textarea");
+            textarea.value = currentSourceCode;
+            textarea.style.position = "fixed";  // Prevent scrolling page context
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                showToast("Source code copied to clipboard!");
+            } catch (err) {
+                console.error("Copy operation failed", err);
+            }
+            document.body.removeChild(textarea);
+        }
+
+        function toggleDarkMode() {
+            const active = document.documentElement.classList.toggle('dark');
+            const body = document.getElementById('body-element');
+            const sun = document.getElementById('sun-icon');
+            const moon = document.getElementById('moon-icon');
+
+            if (active) {
+                body.classList.add('dark', 'bg-slate-950');
+                sun.classList.add('hidden');
+                moon.classList.remove('hidden');
+                localStorage.setItem('viewsource-dark', 'true');
+            } else {
+                body.classList.remove('dark', 'bg-slate-950');
+                sun.classList.remove('hidden');
+                moon.classList.add('hidden');
+                localStorage.setItem('viewsource-dark', 'false');
+            }
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').innerText = message;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
