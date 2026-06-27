@@ -1,0 +1,62 @@
+/* Monospace font settings mimicking native view-source */
+.code-font {
+    font-family: 'Consolas', 'Fira Code', 'Monaco', 'Courier New', Courier, monospace;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+/* Line numbers are non-selectable to allow clean copy-pasting of source */
+.line-num {
+    user-select: none;
+    -webkit-user-select: none;
+    text-align: right;
+    padding-right: 1.5rem;
+    color: #858585;
+    border-right: 1px solid #e1e1e1;
+    width: 50px;
+    min-width: 50px;
+}
+
+.dark .line-num {
+    color: #606060;
+    border-right: 1px solid #3c3c3c;
+}
+
+.code-cell {
+    padding-left: 1.5rem;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+/* Syntax colors inspired by Chrome native view-source */
+.source-link {
+    color: #0000ee;
+    text-decoration: underline;
+    cursor: pointer;
+}
+.dark .source-link {
+    color: #8ab4f8;
+}
+.source-link:hover {
+    color: #ff0000;
+}
+.dark .source-link:hover {
+    color: #f28b82;
+}
+
+/* Scrollbar styles */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+.dark ::-webkit-scrollbar-thumb {
+    background: #4a4a4a;
+    border-radius: 5px;
+}
+::-webkit-scrollbar-thumb {
+    background: #cdcdcd;
+    border-radius: 5px;
+}
